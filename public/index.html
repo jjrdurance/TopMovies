@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Cinephile's Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d0a08;
+    --paper:#f4ede0;
+    --paper-2:#ebe2d1;
+    --accent:#c8102e;
+    --gold:#b08a3e;
+    --muted:#6b6258;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--paper);color:var(--ink);font-family:'Cormorant Garamond',serif}
+  body{
+    min-height:100vh;
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgba(200,16,46,.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 90%, rgba(176,138,62,.10), transparent 55%);
+  }
+  /* Header */
+  .masthead{
+    border-bottom:2px solid var(--ink);
+    padding:24px 32px 14px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+    position:relative;
+  }
+  .masthead::after{
+    content:"";position:absolute;left:32px;right:32px;bottom:6px;height:1px;background:var(--ink);
+  }
+  .brand{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(36px,6vw,72px);
+    line-height:.9;letter-spacing:.02em;
+  }
+  .brand .amp{color:var(--accent);font-style:italic;font-family:'Cormorant Garamond',serif;font-weight:600}
+  .meta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);
+    text-align:right;line-height:1.7
+  }
+  .meta b{color:var(--ink);font-weight:600}
+  .live-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--accent);margin-right:6px;animation:livePulse 2s infinite;
+  }
+  @keyframes livePulse{0%,100%{opacity:.4}50%{opacity:1}}
+  /* Tabs */
+  .tabs{
+    border-bottom:1px solid var(--ink);
+    padding:0 32px;
+    display:flex;gap:0;overflow-x:auto;
+    background:rgba(13,10,8,.04);
+  }
+  .tab{
+    padding:14px 22px;
+    font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:15px;
+    background:transparent;border:none;cursor:pointer;color:var(--muted);
+    border-bottom:3px solid transparent;
+    white-space:nowrap;transition:color .15s,border-color .15s;
+    position:relative;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+  .tab .count{
+    font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;
+    margin-left:6px;letter-spacing:.1em;
+  }
+  .tab.active .count{color:var(--accent)}
+  .tab.personal .badge-self{
+    display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--gold);margin-right:6px;vertical-align:middle;
+  }
+  /* Layout */
+  main{padding:24px 32px 80px;display:grid;grid-template-columns:340px 1fr;gap:32px}
+  @media (max-width:880px){main{grid-template-columns:1fr;padding:20px}}
+  /* Sidebar */
+  aside{
+    position:sticky;top:20px;align-self:start;
+    border:1px solid var(--ink);
+    background:var(--paper-2);
+    padding:22px;
+    box-shadow:6px 6px 0 var(--ink);
+  }
+  aside h2{
+    font-family:'Bebas Neue',sans-serif;letter-spacing:.06em;
+    font-size:24px;margin-bottom:4px;
+  }
+  aside .sub{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    text-transform:uppercase;letter-spacing:.2em;color:var(--muted);margin-bottom:18px
+  }
+  .readonly-notice{
+    background:var(--paper);border:1px dashed var(--ink);
+    padding:14px;font-size:14px;font-style:italic;line-height:1.5;color:var(--muted);
+  }
+  .readonly-notice b{color:var(--ink);font-style:normal;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
+  .field{margin-bottom:14px}
+  .field label{
+    display:block;font-family:'JetBrains Mono',monospace;
+    font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px
+  }
+  .field input{
+    width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--ink);
+    padding:8px 2px;font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--ink);
+    outline:none;
+  }
+  .field input:focus{border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .type-toggle{
+    display:flex;gap:0;margin-bottom:14px;border:1px solid var(--ink);
+  }
+  .type-toggle button{
+    flex:1;background:transparent;border:none;padding:9px 12px;cursor:pointer;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink);transition:background .15s, color .15s;
+  }
+  .type-toggle button.active{background:var(--ink);color:var(--paper)}
+  .type-toggle button:not(.active):hover{background:rgba(13,10,8,.08)}
+  .badge{
+    display:inline-block;padding:2px 6px;font-family:'JetBrains Mono',monospace;
+    font-size:8px;letter-spacing:.16em;text-transform:uppercase;
+    background:var(--ink);color:var(--paper);margin-left:6px;vertical-align:middle;
+  }
+  .badge.show{background:var(--gold)}
+  .btn{
+    width:100%;margin-top:10px;
+    background:var(--ink);color:var(--paper);
+    border:none;padding:14px;cursor:pointer;
+    font-family:'Bebas Neue',sans-serif;letter-spacing:.16em;font-size:16px;
+    transition:transform .15s ease, background .2s ease;
+  }
+  .btn:hover{background:var(--accent);transform:translate(-1px,-1px)}
+  .btn:active{transform:translate(0,0)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+  .btn.ghost:hover{background:var(--ink);color:var(--paper)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .hint{
+    font-size:13px;color:var(--muted);margin-top:14px;line-height:1.5;font-style:italic;
+  }
+  .stats{
+    margin-top:18px;padding-top:14px;border-top:1px dashed var(--ink);
+    display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  }
+  .stats b{font-size:22px;font-family:'Bebas Neue',sans-serif;letter-spacing:.02em;display:block}
+  /* Toolbar */
+  .toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:18px;flex-wrap:wrap;gap:10px;
+  }
+  .toolbar h1{
+    font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.04em;
+  }
+  .toolbar h1 .by{color:var(--muted);font-size:18px;margin-left:8px}
+  .toolbar .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;padding:8px 12px;border:1px solid var(--ink);
+    background:transparent;color:var(--ink);cursor:pointer;
+  }
+  .chip.active{background:var(--ink);color:var(--paper)}
+  .chip:hover{background:var(--accent);color:var(--paper);border-color:var(--accent)}
+  /* Movie grid */
+  .movies{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+    gap:22px 18px;
+  }
+  .card{
+    position:relative;
+    background:var(--paper-2);
+    border:1px solid var(--ink);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .card.editable{cursor:grab}
+  .card:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
+  .card.dragging{opacity:.4;cursor:grabbing}
+  .card.drag-over{box-shadow:-4px 0 0 var(--accent)}
+  .rank{
+    position:absolute;top:-10px;left:-10px;z-index:2;
+    background:var(--ink);color:var(--paper);
+    font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.04em;
+    padding:4px 10px;min-width:36px;text-align:center;
+    box-shadow:2px 2px 0 var(--accent);
+  }
+  .card.top3 .rank{background:var(--accent);box-shadow:2px 2px 0 var(--gold)}
+  .poster{
+    aspect-ratio:2/3;width:100%;display:block;object-fit:cover;
+    background:linear-gradient(135deg,#1a1411,#3a2820);
+  }
+  .poster.placeholder{
+    display:flex;align-items:center;justify-content:center;
+    color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:14px;
+    letter-spacing:.2em;text-align:center;padding:10px;
+  }
+  .info{padding:8px 10px 10px;border-top:1px solid var(--ink)}
+  .title{
+    font-family:'Cormorant Garamond',serif;font-weight:600;
+    font-size:15px;line-height:1.2;margin-bottom:3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .year{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    letter-spacing:.14em;color:var(--muted);
+  }
+  .added-by{
+    font-family:'JetBrains Mono',monospace;font-size:9px;
+    letter-spacing:.1em;color:var(--gold);margin-top:2px;
+  }
+  .actions{
+    position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;
+    transition:opacity .2s;
+  }
+  .card.editable:hover .actions{opacity:1}
+  .icon-btn{
+    background:var(--paper);border:1px solid var(--ink);width:26px;height:26px;
+    display:grid;place-items:center;cursor:pointer;font-size:12px;line-height:1;
+    transition:background .15s;
+  }
+  .icon-btn:hover{background:var(--accent);color:var(--paper)}
+  /* Empty state */
+  .empty{
+    grid-column:1/-1;
+    text-align:center;padding:80px 20px;border:1.5px dashed var(--ink);
+  }
+  .empty h3{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:.04em;margin-bottom:8px}
+  .empty p{color:var(--muted);font-size:18px;font-style:italic}
+  /* Loader */
+  .loader{
+    position:fixed;inset:0;background:rgba(13,10,8,.85);display:none;
+    align-items:center;justify-content:center;z-index:50;
+    color:var(--paper);font-family:'Bebas Neue',sans-serif;
+    font-size:24px;letter-spacing:.2em;
+  }
+  .loader.show{display:flex}
+  .loader::before{
+    content:"";width:14px;height:14px;border-radius:50%;background:var(--accent);
+    margin-right:14px;animation:pulse 1s infinite ease-in-out;
+  }
+  @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+  /* Toast */
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:12px 20px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;
+    text-transform:uppercase;z-index:100;opacity:0;transition:all .3s;
+    border-left:3px solid var(--accent);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* Modal */
+  .modal{
+    position:fixed;inset:0;background:rgba(13,10,8,.7);display:none;
+    align-items:center;justify-content:center;z-index:60;padding:20px;
+  }
+  .modal.show{display:flex}
+  .modal-inner{
+    background:var(--paper);border:1.5px solid var(--ink);padding:24px;max-width:420px;width:100%;
+    box-shadow:8px 8px 0 var(--ink);
+  }
+  .modal-inner h3{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.04em;margin-bottom:6px}
+  .modal-inner p{color:var(--muted);font-size:15px;font-style:italic;margin-bottom:16px}
+  /* Name prompt */
+  .name-prompt{
+    position:fixed;inset:0;background:var(--paper);z-index:200;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .name-prompt-inner{max-width:420px;width:100%;text-align:center}
+  .name-prompt h1{
+    font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:.04em;margin-bottom:8px;
+  }
+  .name-prompt h1 .amp{color:var(--accent);font-style:italic;font-family:'Cormorant Garamond',serif;font-weight:600}
+  .name-prompt p{color:var(--muted);font-size:18px;font-style:italic;margin-bottom:24px}
+</style>
+</head>
+<body>
+
+<!-- First-visit name prompt -->
+<div class="name-prompt" id="namePrompt" style="display:none">
+  <div class="name-prompt-inner">
+    <h1>The Cinephile's <span class="amp">&</span> Ledger</h1>
+    <p>Before you inscribe, who's joining the canon?</p>
+    <div class="field" style="text-align:left">
+      <label>Your name</label>
+      <input id="nameInput" type="text" placeholder="e.g. Alex" autocomplete="off"/>
+    </div>
+    <button class="btn" id="nameSubmit">Enter the Ledger</button>
+    <p style="margin-top:14px;font-size:12px">Use the same name on every device — that's how your personal Top 20 stays yours.</p>
+  </div>
+</div>
+
+<header class="masthead">
+  <div>
+    <div class="brand">The Cinephile's <span class="amp">&</span> Ledger</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:6px">
+      A shared canon · Vol. I · Films & Series
+    </div>
+  </div>
+  <div class="meta">
+    <b id="dateStamp"></b><br>
+    <span class="live-dot"></span><span id="connStatus">Connecting…</span><br>
+    Curator: <b id="curatorName">—</b> <a href="#" id="changeName" style="color:var(--accent);text-decoration:none;font-size:9px;margin-left:4px">[change]</a>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <!-- tabs injected by JS -->
+</nav>
+
+<main>
+  <aside id="sidebar">
+    <!-- Sidebar content swapped based on view (editable form vs read-only notice) -->
+  </aside>
+
+  <section>
+    <div class="toolbar">
+      <h1 id="viewTitle">The Canon</h1>
+      <div class="controls">
+        <button class="chip active" data-sort="rank">By Rank</button>
+        <button class="chip" data-sort="year">By Year</button>
+        <button class="chip" data-sort="title">By Title</button>
+        <button class="chip" id="exportBtn">Export</button>
+        <button class="chip" id="clearBtn" style="border-color:var(--accent);color:var(--accent);display:none">Clear All</button>
+      </div>
+    </div>
+    <div class="movies" id="movieGrid"></div>
+  </section>
+</main>
+
+<div class="loader" id="loader">Searching the archive…</div>
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="posterModal">
+  <div class="modal-inner">
+    <h3>Poster not found</h3>
+    <p>The archive didn't have this one. Paste a poster image URL, or skip and we'll add it without a poster.</p>
+    <div class="field">
+      <label>Poster URL (optional)</label>
+      <input id="posterUrlInput" type="url" placeholder="https://…"/>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="skipPoster">Skip</button>
+      <button class="btn" id="savePoster">Save</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // ============================================================
+  // Views
+  //   - 'canon'           : shared Top 100, everyone edits
+  //   - 'personal:<name>' : a Top 20 list owned by <name>
+  // ============================================================
+
+  let supabase;
+  let OMDB_KEY = '';
+  let userName = localStorage.getItem('curator_name') || '';
+  let curators = [];           // [{name}]
+  let canon = [];              // [{...}]
+  let personal = {};           // { ownerName: [...movies] }
+  let currentView = 'canon';
+  let currentSort = 'rank';
+  let pendingMovie = null;
+  let currentType = 'movie';
+
+  // ---- DOM refs ----
+  const $ = id => document.getElementById(id);
+  const tabsEl = $('tabs');
+  const sidebar = $('sidebar');
+  const grid = $('movieGrid');
+  const viewTitle = $('viewTitle');
+  const namePrompt = $('namePrompt');
+  const nameInput = $('nameInput');
+  const curatorName = $('curatorName');
+  const connStatus = $('connStatus');
+  const loader = $('loader');
+  const toast = $('toast');
+  const posterModal = $('posterModal');
+  const posterUrlInput = $('posterUrlInput');
+  const clearBtn = $('clearBtn');
+  const exportBtn = $('exportBtn');
+
+  $('dateStamp').textContent =
+    new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}).toUpperCase();
+
+  // ============================================================
+  // Init
+  // ============================================================
+  async function init(){
+    try {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+      OMDB_KEY = cfg.omdbKey || '';
+    } catch(e){
+      console.error('Config fetch failed:', e);
+      connStatus.textContent = 'Offline';
+      showToast('Connection failed — check console');
+      return;
+    }
+
+    if(!userName){
+      namePrompt.style.display = 'flex';
+      nameInput.focus();
+    } else {
+      curatorName.textContent = userName;
+      await registerCurator(userName);
+    }
+
+    await loadEverything();
+    subscribeToChanges();
+    connStatus.textContent = 'Live';
+  }
+
+  async function registerCurator(name){
+    await supabase.from('curators').upsert({ name }, { onConflict: 'name' });
+  }
+
+  async function loadEverything(){
+    const [{data: cur}, {data: cn}, {data: pers}] = await Promise.all([
+      supabase.from('curators').select('*').order('joined_at'),
+      supabase.from('canon').select('*').order('rank'),
+      supabase.from('personal_lists').select('*').order('rank')
+    ]);
+    curators = cur || [];
+    canon = cn || [];
+    personal = {};
+    (pers || []).forEach(m => {
+      if(!personal[m.owner]) personal[m.owner] = [];
+      personal[m.owner].push(m);
+    });
+    renderTabs();
+    render();
+  }
+
+  function subscribeToChanges(){
+    supabase.channel('all-changes')
+      .on('postgres_changes', {event:'*', schema:'public', table:'canon'},          () => loadEverything())
+      .on('postgres_changes', {event:'*', schema:'public', table:'personal_lists'}, () => loadEverything())
+      .on('postgres_changes', {event:'*', schema:'public', table:'curators'},       () => loadEverything())
+      .subscribe();
+  }
+
+  // ============================================================
+  // Name prompt
+  // ============================================================
+  $('nameSubmit').addEventListener('click', async ()=>{
+    const v = nameInput.value.trim();
+    if(!v){ nameInput.focus(); return; }
+    userName = v;
+    localStorage.setItem('curator_name', v);
+    curatorName.textContent = v;
+    namePrompt.style.display = 'none';
+    await registerCurator(v);
+    await loadEverything();
+  });
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') $('nameSubmit').click(); });
+  $('changeName').addEventListener('click', e=>{
+    e.preventDefault();
+    nameInput.value = userName;
+    namePrompt.style.display = 'flex';
+    setTimeout(()=>nameInput.focus(),50);
+  });
+
+  // ============================================================
+  // Tabs
+  // ============================================================
+  function renderTabs(){
+    const items = [
+      {id:'canon', label:'The Canon', count:`${canon.length}/100`}
+    ];
+    // My Top 20 first (if user has a name)
+    if(userName){
+      items.push({
+        id:`personal:${userName}`,
+        label:'My Top 20',
+        count:`${(personal[userName]||[]).length}/20`,
+        self:true
+      });
+    }
+    // Others' Top 20s
+    curators
+      .map(c => c.name)
+      .filter(n => n !== userName)
+      .forEach(n => {
+        items.push({
+          id:`personal:${n}`,
+          label:`${n}'s Top 20`,
+          count:`${(personal[n]||[]).length}/20`
+        });
+      });
+
+    tabsEl.innerHTML = items.map(it => `
+      <button class="tab ${currentView===it.id?'active':''} ${it.self?'personal':''}"
+              data-view="${escapeAttr(it.id)}">
+        ${it.self?'<span class="badge-self"></span>':''}${escape(it.label)}
+        <span class="count">${escape(it.count)}</span>
+      </button>
+    `).join('');
+
+    tabsEl.querySelectorAll('.tab').forEach(t=>{
+      t.addEventListener('click', ()=>{
+        currentView = t.dataset.view;
+        currentSort = 'rank';
+        document.querySelectorAll('.chip[data-sort]').forEach(x=>x.classList.toggle('active', x.dataset.sort==='rank'));
+        renderTabs();
+        render();
+      });
+    });
+  }
+
+  // ============================================================
+  // Sidebar (form vs read-only)
+  // ============================================================
+  function renderSidebar(){
+    const isCanon = currentView === 'canon';
+    const ownerOfView = isCanon ? null : currentView.slice(9);
+    const isMine = !isCanon && ownerOfView === userName;
+    const canEdit = isCanon || isMine;
+    const limit = isCanon ? 100 : 20;
+    const list = isCanon ? canon : (personal[ownerOfView] || []);
+    const filled = list.length;
+    const remaining = Math.max(0, limit - filled);
+
+    if(!canEdit){
+      sidebar.innerHTML = `
+        <h2>${escape(ownerOfView)}'s Top 20</h2>
+        <div class="sub">— Read-only view —</div>
+        <div class="readonly-notice">
+          You're peering into <b>${escape(ownerOfView)}</b>'s personal canon.
+          Only they can inscribe to or rearrange this list.
+        </div>
+        <div class="stats">
+          <div><span style="color:var(--muted)">Filled</span><b>${filled}</b></div>
+          <div><span style="color:var(--muted)">Remaining</span><b>${remaining}</b></div>
+        </div>
+      `;
+      return;
+    }
+
+    const titleHeader = isCanon ? 'Add to the Canon' : 'Add to My Top 20';
+    sidebar.innerHTML = `
+      <h2>${titleHeader}</h2>
+      <div class="sub">— Inscribe to the canon —</div>
+
+      <div class="type-toggle" id="typeToggle">
+        <button data-type="movie" class="${currentType==='movie'?'active':''}">Film</button>
+        <button data-type="series" class="${currentType==='series'?'active':''}">Series</button>
+      </div>
+
+      <div class="field">
+        <label for="titleInput">Title</label>
+        <input id="titleInput" type="text" placeholder="e.g. Vertigo, Twin Peaks…" autocomplete="off"/>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="yearInput">Year</label>
+          <input id="yearInput" type="number" placeholder="1958" min="1888" max="2099"/>
+        </div>
+        <div class="field">
+          <label for="rankInput">Rank</label>
+          <input id="rankInput" type="number" placeholder="auto" min="1" max="${limit}"/>
+        </div>
+      </div>
+
+      <button class="btn" id="addBtn">Inscribe Title</button>
+
+      <p class="hint">Posters auto-fetch from the OMDb archive. Drag cards to re-order. Changes sync live across all curators.</p>
+
+      <div class="stats">
+        <div><span style="color:var(--muted)">Filled</span><b>${filled}</b></div>
+        <div><span style="color:var(--muted)">Remaining</span><b>${remaining}</b></div>
+      </div>
+    `;
+
+    // Wire up the form
+    sidebar.querySelectorAll('#typeToggle button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        sidebar.querySelectorAll('#typeToggle button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        currentType = b.dataset.type;
+      });
+    });
+
+    const addBtn = $('addBtn');
+    const titleInput = $('titleInput');
+    const yearInput = $('yearInput');
+    const rankInput = $('rankInput');
+
+    addBtn.addEventListener('click', () => onAdd(addBtn, titleInput, yearInput, rankInput));
+    [titleInput, yearInput, rankInput].forEach(inp =>
+      inp.addEventListener('keydown', e => { if(e.key==='Enter') addBtn.click(); })
+    );
+  }
+
+  // ============================================================
+  // Add flow
+  // ============================================================
+  async function onAdd(addBtn, titleInput, yearInput, rankInput){
+    if(!userName){ namePrompt.style.display = 'flex'; return; }
+
+    const isCanon = currentView === 'canon';
+    const limit = isCanon ? 100 : 20;
+    const targetList = isCanon ? canon : (personal[userName] || []);
+
+    const title = titleInput.value.trim();
+    const year = yearInput.value ? parseInt(yearInput.value,10) : null;
+    const rank = rankInput.value ? parseInt(rankInput.value,10) : null;
+    if(!title){ showToast('Enter a title'); titleInput.focus(); return; }
+    if(targetList.length >= limit){ showToast(`List is full (${limit})`); return; }
+
+    addBtn.disabled = true;
+    loader.classList.add('show');
+    const result = await fetchPoster(title, year, currentType);
+    loader.classList.remove('show');
+
+    const movie = {
+      title: result?.title || title,
+      year: result?.year ? parseInt(result.year,10) : (year || null),
+      poster: result?.poster || null,
+      rank: rank,
+      type: currentType
+    };
+    if(isCanon){ movie.added_by = userName; }
+    else      { movie.owner = userName; }
+
+    if(!movie.poster){
+      pendingMovie = { movie, isCanon, list: targetList, addBtn, titleInput, yearInput, rankInput };
+      posterUrlInput.value = '';
+      posterModal.classList.add('show');
+      return;
+    }
+    await finalizeAdd(movie, isCanon, targetList);
+    addBtn.disabled = false;
+    titleInput.value = ''; yearInput.value = ''; rankInput.value = '';
+    titleInput.focus();
+  }
+
+  $('savePoster').addEventListener('click', async ()=>{
+    if(pendingMovie){
+      const url = posterUrlInput.value.trim();
+      if(url) pendingMovie.movie.poster = url;
+      await finalizeAdd(pendingMovie.movie, pendingMovie.isCanon, pendingMovie.list);
+      const p = pendingMovie;
+      p.addBtn.disabled = false;
+      p.titleInput.value = ''; p.yearInput.value = ''; p.rankInput.value = '';
+      p.titleInput.focus();
+      pendingMovie = null;
+    }
+    posterModal.classList.remove('show');
+  });
+  $('skipPoster').addEventListener('click', async ()=>{
+    if(pendingMovie){
+      await finalizeAdd(pendingMovie.movie, pendingMovie.isCanon, pendingMovie.list);
+      const p = pendingMovie;
+      p.addBtn.disabled = false;
+      p.titleInput.value = ''; p.yearInput.value = ''; p.rankInput.value = '';
+      p.titleInput.focus();
+      pendingMovie = null;
+    }
+    posterModal.classList.remove('show');
+  });
+
+  async function finalizeAdd(movie, isCanon, list){
+    const table = isCanon ? 'canon' : 'personal_lists';
+    const ownerFilter = isCanon ? null : { owner: movie.owner };
+    const pos = (movie.rank && movie.rank >= 1 && movie.rank <= list.length + 1)
+      ? movie.rank
+      : list.length + 1;
+
+    // Bump everyone at or after pos by 1
+    const toBump = list.filter(m => m.rank >= pos);
+    for(const m of toBump){
+      await supabase.from(table).update({ rank: m.rank + 1 }).eq('id', m.id);
+    }
+    // Insert
+    const { error } = await supabase.from(table).insert([{ ...movie, rank: pos }]);
+    if(error){ console.error(error); showToast('Save failed'); return; }
+    showToast(`Added: ${movie.title}`);
+    await loadEverything();
+  }
+
+  // ============================================================
+  // Move / Delete (active list)
+  // ============================================================
+  function getActiveList(){
+    if(currentView === 'canon') return { list: canon, table: 'canon', isCanon: true };
+    const owner = currentView.slice(9);
+    return { list: personal[owner] || [], table: 'personal_lists', isCanon: false, owner };
+  }
+
+  async function moveItem(id, newRank){
+    const { list, table } = getActiveList();
+    const movie = list.find(m => m.id === id);
+    if(!movie) return;
+    const oldRank = movie.rank;
+    if(newRank === oldRank) return;
+    newRank = Math.max(1, Math.min(list.length, newRank));
+
+    if(newRank < oldRank){
+      for(const m of list){
+        if(m.rank >= newRank && m.rank < oldRank){
+          await supabase.from(table).update({ rank: m.rank + 1 }).eq('id', m.id);
+        }
+      }
+    } else {
+      for(const m of list){
+        if(m.rank > oldRank && m.rank <= newRank){
+          await supabase.from(table).update({ rank: m.rank - 1 }).eq('id', m.id);
+        }
+      }
+    }
+    await supabase.from(table).update({ rank: newRank }).eq('id', id);
+    await loadEverything();
+  }
+
+  async function deleteItem(id){
+    const { list, table } = getActiveList();
+    const movie = list.find(m => m.id === id);
+    if(!movie) return;
+    const oldRank = movie.rank;
+    await supabase.from(table).delete().eq('id', id);
+    for(const m of list){
+      if(m.rank > oldRank){
+        await supabase.from(table).update({ rank: m.rank - 1 }).eq('id', m.id);
+      }
+    }
+    await loadEverything();
+  }
+
+  // ============================================================
+  // Render movie grid
+  // ============================================================
+  function render(){
+    renderSidebar();
+
+    const { list, isCanon } = getActiveList();
+    const ownerOfView = isCanon ? null : currentView.slice(9);
+    const canEdit = isCanon || ownerOfView === userName;
+    const limit = isCanon ? 100 : 20;
+
+    viewTitle.innerHTML = isCanon
+      ? 'The Canon <span class="by"></span>'
+      : `Top 20 <span class="by">— by ${escape(ownerOfView)}${ownerOfView===userName?' (you)':''}</span>`;
+
+    clearBtn.style.display = canEdit ? '' : 'none';
+
+    let display = [...list];
+    if(currentSort === 'year') display.sort((a,b)=>(b.year||0)-(a.year||0));
+    else if(currentSort === 'title') display.sort((a,b)=>a.title.localeCompare(b.title));
+    else display.sort((a,b)=>a.rank-b.rank);
+
+    if(display.length === 0){
+      grid.innerHTML = `
+        <div class="empty">
+          <h3>${canEdit?'The list awaits':'Empty'}</h3>
+          <p>${canEdit
+            ? (isCanon ? 'Add the first masterpiece on the left.' : 'Inscribe the first title to your personal canon.')
+            : `${escape(ownerOfView)} hasn't added anything yet.`}</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = display.map(m=>`
+      <article class="card ${m.rank<=3?'top3':''} ${canEdit?'editable':''}"
+               draggable="${canEdit && currentSort==='rank'}" data-id="${m.id}">
+        <div class="rank">${String(m.rank).padStart(2,'0')}</div>
+        ${canEdit ? `
+        <div class="actions">
+          <button class="icon-btn" title="Set rank" data-action="rank" data-id="${m.id}">#</button>
+          <button class="icon-btn" title="Move up" data-action="up" data-id="${m.id}">↑</button>
+          <button class="icon-btn" title="Move down" data-action="down" data-id="${m.id}">↓</button>
+          <button class="icon-btn" title="Remove" data-action="del" data-id="${m.id}">✕</button>
+        </div>` : ''}
+        ${m.poster
+          ? `<img class="poster" src="${m.poster}" alt="${escapeAttr(m.title)}" onerror="this.outerHTML='<div class=\\'poster placeholder\\'>NO POSTER</div>'"/>`
+          : `<div class="poster placeholder">NO POSTER</div>`
+        }
+        <div class="info">
+          <div class="title">${escape(m.title)}</div>
+          <div class="year">${m.year || '——'}${m.type === 'series' ? '<span class="badge show">Series</span>' : ''}</div>
+          ${isCanon && m.added_by ? `<div class="added-by">— ${escape(m.added_by)}</div>` : ''}
+        </div>
+      </article>
+    `).join('');
+
+    if(canEdit) attachCardEvents();
+  }
+
+  function attachCardEvents(){
+    const { list } = getActiveList();
+    grid.querySelectorAll('.icon-btn').forEach(b=>{
+      b.addEventListener('click', async e=>{
+        e.stopPropagation();
+        const id = b.dataset.id;
+        const action = b.dataset.action;
+        const movie = list.find(m => m.id === id);
+        if(!movie) return;
+        if(action==='del'){
+          if(!confirm(`Remove "${movie.title}"?`)) return;
+          await deleteItem(id);
+          showToast('Removed');
+        } else if(action==='rank'){
+          const input = prompt(`Move "${movie.title}" to which rank? (1–${list.length})`, movie.rank);
+          if(input === null) return;
+          const newRank = parseInt(input, 10);
+          if(isNaN(newRank) || newRank < 1 || newRank > list.length){
+            showToast('Invalid rank'); return;
+          }
+          await moveItem(id, newRank);
+          showToast(`Moved to #${newRank}`);
+        } else if(action==='up' && movie.rank > 1){
+          await moveItem(id, movie.rank - 1);
+        } else if(action==='down' && movie.rank < list.length){
+          await moveItem(id, movie.rank + 1);
+        }
+      });
+    });
+
+    if(currentSort !== 'rank') return;
+    let dragId = null;
+    grid.querySelectorAll('.card').forEach(card=>{
+      card.addEventListener('dragstart', e=>{
+        dragId = card.dataset.id;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', ()=>{
+        card.classList.remove('dragging');
+        grid.querySelectorAll('.drag-over').forEach(c=>c.classList.remove('drag-over'));
+      });
+      card.addEventListener('dragover', e=>{
+        e.preventDefault();
+        if(card.dataset.id !== dragId) card.classList.add('drag-over');
+      });
+      card.addEventListener('dragleave', ()=>card.classList.remove('drag-over'));
+      card.addEventListener('drop', async e=>{
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        if(!dragId || card.dataset.id === dragId) return;
+        const target = list.find(m => m.id === card.dataset.id);
+        if(!target) return;
+        await moveItem(dragId, target.rank);
+      });
+    });
+  }
+
+  // ============================================================
+  // Toolbar
+  // ============================================================
+  document.querySelectorAll('.chip[data-sort]').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('.chip[data-sort]').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active');
+      currentSort = c.dataset.sort;
+      render();
+    });
+  });
+
+  clearBtn.addEventListener('click', async ()=>{
+    const { list, table, isCanon, owner } = getActiveList();
+    if(list.length === 0) return;
+    const what = isCanon ? 'the entire Canon' : `your Top 20`;
+    if(!confirm(`Wipe ${what}? This cannot be undone.`)) return;
+    let q = supabase.from(table).delete();
+    if(!isCanon) q = q.eq('owner', owner);
+    else q = q.neq('id', '00000000-0000-0000-0000-000000000000');
+    await q;
+    showToast('Cleared');
+    await loadEverything();
+  });
+
+  exportBtn.addEventListener('click', ()=>{
+    const { list, isCanon } = getActiveList();
+    if(list.length === 0){ showToast('Nothing to export'); return; }
+    const text = [...list].sort((a,b)=>a.rank-b.rank).map(m=>{
+      const yr = m.year ? ' ('+m.year+')' : '';
+      const tag = m.type === 'series' ? ' [Series]' : '';
+      const by = isCanon && m.added_by ? ` — ${m.added_by}` : '';
+      return `${String(m.rank).padStart(3,' ')}. ${m.title}${yr}${tag}${by}`;
+    }).join('\n');
+    navigator.clipboard.writeText(text).then(
+      ()=>showToast('Copied to clipboard'),
+      ()=>showToast('Copy failed')
+    );
+  });
+
+  // ============================================================
+  // Helpers
+  // ============================================================
+  let toastTimer;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toast.classList.remove('show'), 2400);
+  }
+
+  async function fetchPoster(title, year, type){
+    if(!OMDB_KEY) return null;
+    const params = new URLSearchParams({t:title, type:type || 'movie', apikey: OMDB_KEY});
+    if(year) params.set('y', year);
+    try{
+      const r = await fetch(`https://www.omdbapi.com/?${params}`);
+      const data = await r.json();
+      if(data && data.Response === 'True' && data.Poster && data.Poster !== 'N/A'){
+        return {poster:data.Poster, title:data.Title, year:data.Year};
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function escape(s){
+    return String(s ?? '').replace(/[&<>"']/g, c=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+  function escapeAttr(s){ return escape(s).replace(/`/g,'&#96;'); }
+
+  init();
+</script>
+</body>
+</html>
