@@ -460,11 +460,19 @@
     render();
   }
 
+  // Debounce realtime-triggered reloads so a burst of N changes
+  // (e.g. a rank shuffle that touches 40 rows) collapses into one reload.
+  let reloadDebounceTimer;
+  function scheduleReload(){
+    clearTimeout(reloadDebounceTimer);
+    reloadDebounceTimer = setTimeout(loadEverything, 150);
+  }
+
   function subscribeToChanges(){
     supabase.channel('all-changes')
-      .on('postgres_changes', {event:'*', schema:'public', table:'canon'},          () => loadEverything())
-      .on('postgres_changes', {event:'*', schema:'public', table:'personal_lists'}, () => loadEverything())
-      .on('postgres_changes', {event:'*', schema:'public', table:'curators'},       () => loadEverything())
+      .on('postgres_changes', {event:'*', schema:'public', table:'canon'},          scheduleReload)
+      .on('postgres_changes', {event:'*', schema:'public', table:'personal_lists'}, scheduleReload)
+      .on('postgres_changes', {event:'*', schema:'public', table:'curators'},       scheduleReload)
       .subscribe();
   }
 
@@ -757,11 +765,11 @@
       ? movie.rank
       : list.length + 1;
 
-    // Bump everyone at or after pos by 1
+    // Bump everyone at or after pos by 1 — fire in parallel, not sequentially
     const toBump = list.filter(m => m.rank >= pos);
-    for(const m of toBump){
-      await supabase.from(table).update({ rank: m.rank + 1 }).eq('id', m.id);
-    }
+    await Promise.all(toBump.map(m =>
+      supabase.from(table).update({ rank: m.rank + 1 }).eq('id', m.id)
+    ));
     // Insert
     const { error } = await supabase.from(table).insert([{ ...movie, rank: pos }]);
     if(error){ console.error(error); showToast('Save failed'); return; }
@@ -786,20 +794,15 @@
     if(newRank === oldRank) return;
     newRank = Math.max(1, Math.min(list.length, newRank));
 
-    if(newRank < oldRank){
-      for(const m of list){
-        if(m.rank >= newRank && m.rank < oldRank){
-          await supabase.from(table).update({ rank: m.rank + 1 }).eq('id', m.id);
-        }
-      }
-    } else {
-      for(const m of list){
-        if(m.rank > oldRank && m.rank <= newRank){
-          await supabase.from(table).update({ rank: m.rank - 1 }).eq('id', m.id);
-        }
-      }
-    }
-    await supabase.from(table).update({ rank: newRank }).eq('id', id);
+    // Build the shuffle list, then fire all updates in parallel (vs. sequential awaits)
+    const shuffles = newRank < oldRank
+      ? list.filter(m => m.rank >= newRank && m.rank < oldRank).map(m => ({ id: m.id, rank: m.rank + 1 }))
+      : list.filter(m => m.rank > oldRank  && m.rank <= newRank).map(m => ({ id: m.id, rank: m.rank - 1 }));
+
+    await Promise.all([
+      ...shuffles.map(s => supabase.from(table).update({ rank: s.rank }).eq('id', s.id)),
+      supabase.from(table).update({ rank: newRank }).eq('id', id)
+    ]);
     await loadEverything();
   }
 
@@ -808,12 +811,11 @@
     const movie = list.find(m => m.id === id);
     if(!movie) return;
     const oldRank = movie.rank;
-    await supabase.from(table).delete().eq('id', id);
-    for(const m of list){
-      if(m.rank > oldRank){
-        await supabase.from(table).update({ rank: m.rank - 1 }).eq('id', m.id);
-      }
-    }
+    const toShift = list.filter(m => m.rank > oldRank);
+    await Promise.all([
+      supabase.from(table).delete().eq('id', id),
+      ...toShift.map(m => supabase.from(table).update({ rank: m.rank - 1 }).eq('id', m.id))
+    ]);
     await loadEverything();
   }
 
@@ -863,7 +865,7 @@
           <button class="icon-btn" title="Remove" data-action="del" data-id="${m.id}">✕</button>
         </div>` : ''}
         ${m.poster
-          ? `<img class="poster" src="${m.poster}" alt="${escapeAttr(m.title)}" onerror="this.outerHTML='<div class=\\'poster placeholder\\'>NO POSTER</div>'"/>`
+          ? `<img class="poster" src="${m.poster}" alt="${escapeAttr(m.title)}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'poster placeholder\\'>NO POSTER</div>'"/>`
           : `<div class="poster placeholder">NO POSTER</div>`
         }
         <div class="info">
@@ -1062,32 +1064,36 @@
 
     $('importModal').classList.remove('show');
     loader.classList.add('show');
+    loader.textContent = `Looking up ${toImport.length} title${toImport.length===1?'':'s'}…`;
 
-    let nextRank = canon.length + 1;
-    let added = 0, failed = 0;
-    for(let i = 0; i < toImport.length; i++){
-      const entry = toImport[i];
-      loader.textContent = `Importing ${i+1}/${toImport.length}…`;
+    // Phase 1: parallel OMDb lookups
+    const enriched = await Promise.all(toImport.map(async entry => {
       let result = null;
       try { result = await fetchPoster(entry.title, entry.year, entry.type); } catch(e){}
-      const movie = {
+      return {
         title: result?.title || entry.title,
         year: result?.year ? parseInt(result.year, 10) : (entry.year || null),
         poster: result?.poster || null,
-        rank: nextRank,
         type: entry.type,
         added_by: userName
       };
-      const { error } = await supabase.from('canon').insert([movie]);
-      if(error){ failed++; }
-      else    { added++; nextRank++; }
-    }
+    }));
+
+    // Phase 2: single multi-row insert with sequential ranks
+    loader.textContent = 'Saving to the archive…';
+    let nextRank = canon.length + 1;
+    const rows = enriched.map(r => ({ ...r, rank: nextRank++ }));
+    const { error } = await supabase.from('canon').insert(rows);
 
     loader.classList.remove('show');
     loader.textContent = 'Searching the archive…';
 
-    let msg = `Imported ${added}`;
-    if(failed)  msg += `, ${failed} failed`;
+    if(error){
+      console.error(error);
+      showToast('Import failed — check console');
+      return;
+    }
+    let msg = `Imported ${rows.length}`;
     if(skipped) msg += `, ${skipped} skipped (Canon full)`;
     showToast(msg);
     await loadEverything();
