@@ -285,13 +285,16 @@
 <!-- First-visit name prompt -->
 <div class="name-prompt" id="namePrompt" style="display:none">
   <div class="name-prompt-inner">
-    <h1>The Cinephile's <span class="amp">&</span> Ledger</h1>
-    <p>Before you inscribe, who's joining the canon?</p>
+    <h1 id="namePromptTitle">The Cinephile's <span class="amp">&</span> Ledger</h1>
+    <p id="namePromptSubtitle">Before you inscribe, who's joining the canon?</p>
     <div class="field" style="text-align:left">
       <label>Your name</label>
       <input id="nameInput" type="text" placeholder="e.g. Alex" autocomplete="off"/>
     </div>
-    <button class="btn" id="nameSubmit">Enter the Ledger</button>
+    <div style="display:flex;gap:12px;margin-top:10px">
+      <button class="btn ghost" id="nameCancel" style="flex:1;display:none;margin-top:0">Cancel</button>
+      <button class="btn" id="nameSubmit" style="flex:1;margin-top:0">Enter the Ledger</button>
+    </div>
     <p style="margin-top:14px;font-size:12px">Use the same name on every device — that's how your personal Top 20 stays yours.</p>
   </div>
 </div>
@@ -327,6 +330,7 @@
         <button class="chip" data-sort="year">By Year</button>
         <button class="chip" data-sort="title">By Title</button>
         <button class="chip" id="exportBtn">Export</button>
+        <button class="chip" id="importBtn" style="display:none">Import</button>
         <button class="chip" id="clearBtn" style="border-color:var(--accent);color:var(--accent);display:none">Clear All</button>
       </div>
     </div>
@@ -348,6 +352,21 @@
     <div class="row">
       <button class="btn ghost" id="skipPoster">Skip</button>
       <button class="btn" id="savePoster">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="importModal">
+  <div class="modal-inner" style="max-width:560px">
+    <h3>Bulk Import to The Canon</h3>
+    <p>Paste titles, one per line. Optional format: <code>Title (Year) [Series]</code>. Posters auto-fetch when an OMDb match is found.</p>
+    <div class="field">
+      <label>Titles</label>
+      <textarea id="importInput" rows="10" style="width:100%;background:transparent;border:1px solid var(--ink);padding:10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);resize:vertical;line-height:1.6" placeholder="Vertigo (1958)&#10;Twin Peaks (1990) [Series]&#10;The Godfather"></textarea>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="cancelImport">Cancel</button>
+      <button class="btn" id="confirmImport">Import</button>
     </div>
   </div>
 </div>
@@ -409,8 +428,7 @@
     }
 
     if(!userName){
-      namePrompt.style.display = 'flex';
-      nameInput.focus();
+      showNamePrompt('first');
     } else {
       curatorName.textContent = userName;
       await registerCurator(userName);
@@ -451,24 +469,86 @@
   }
 
   // ============================================================
-  // Name prompt
+  // Name prompt — first-visit + rename
   // ============================================================
+  function showNamePrompt(mode){
+    if(mode === 'change'){
+      $('namePromptTitle').innerHTML = 'Change your name';
+      $('namePromptSubtitle').textContent = 'Pick a new name. Your existing Top 20 and contributions follow you.';
+      $('nameSubmit').textContent = 'Save';
+      $('nameCancel').style.display = '';
+      nameInput.value = userName;
+    } else {
+      $('namePromptTitle').innerHTML = "The Cinephile's <span class=\"amp\">&</span> Ledger";
+      $('namePromptSubtitle').textContent = "Before you inscribe, who's joining the canon?";
+      $('nameSubmit').textContent = 'Enter the Ledger';
+      $('nameCancel').style.display = 'none';
+      nameInput.value = '';
+    }
+    namePrompt.style.display = 'flex';
+    setTimeout(()=>nameInput.focus(),50);
+  }
+
+  async function renameCurator(oldName, newName){
+    if(oldName === newName) return { ok:true };
+    // Conflict check — refuse if another curator already has that name
+    const { data: conflict } = await supabase
+      .from('curators').select('name').eq('name', newName).maybeSingle();
+    if(conflict) return { ok:false, reason:'taken' };
+    // Migrate ownership references first (so nothing is orphaned mid-rename)
+    await supabase.from('personal_lists').update({ owner: newName }).eq('owner', oldName);
+    await supabase.from('canon').update({ added_by: newName }).eq('added_by', oldName);
+    // Rename the curator row (PK update)
+    const { error: updErr } = await supabase
+      .from('curators').update({ name: newName }).eq('name', oldName);
+    if(updErr){
+      // Fallback: insert new + delete old
+      await supabase.from('curators').upsert({ name: newName }, { onConflict: 'name' });
+      await supabase.from('curators').delete().eq('name', oldName);
+    }
+    return { ok:true };
+  }
+
   $('nameSubmit').addEventListener('click', async ()=>{
     const v = nameInput.value.trim();
     if(!v){ nameInput.focus(); return; }
+
+    const submitBtn = $('nameSubmit');
+    submitBtn.disabled = true;
+    const oldName = userName;
+
+    if(oldName && oldName !== v){
+      const result = await renameCurator(oldName, v);
+      if(!result.ok){
+        submitBtn.disabled = false;
+        showToast(result.reason === 'taken' ? `"${v}" is already taken` : 'Rename failed');
+        return;
+      }
+      showToast(`Renamed to ${v}`);
+    } else if(!oldName){
+      await registerCurator(v);
+    }
+
     userName = v;
     localStorage.setItem('curator_name', v);
     curatorName.textContent = v;
     namePrompt.style.display = 'none';
-    await registerCurator(v);
+    submitBtn.disabled = false;
     await loadEverything();
   });
-  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') $('nameSubmit').click(); });
+
+  $('nameCancel').addEventListener('click', ()=>{
+    namePrompt.style.display = 'none';
+  });
+
+  nameInput.addEventListener('keydown', e=>{
+    if(e.key === 'Enter') $('nameSubmit').click();
+    else if(e.key === 'Escape' && userName) $('nameCancel').click();
+  });
+
   $('changeName').addEventListener('click', e=>{
     e.preventDefault();
-    nameInput.value = userName;
-    namePrompt.style.display = 'flex';
-    setTimeout(()=>nameInput.focus(),50);
+    showNamePrompt('change');
   });
 
   // ============================================================
@@ -606,7 +686,7 @@
   // Add flow
   // ============================================================
   async function onAdd(addBtn, titleInput, yearInput, rankInput){
-    if(!userName){ namePrompt.style.display = 'flex'; return; }
+    if(!userName){ showNamePrompt('first'); return; }
 
     const isCanon = currentView === 'canon';
     const limit = isCanon ? 100 : 20;
@@ -753,6 +833,7 @@
       : `Top 20 <span class="by">— by ${escape(ownerOfView)}${ownerOfView===userName?' (you)':''}</span>`;
 
     clearBtn.style.display = canEdit ? '' : 'none';
+    $('importBtn').style.display = isCanon ? '' : 'none';
 
     let display = [...list];
     if(currentSort === 'year') display.sort((a,b)=>(b.year||0)-(a.year||0));
@@ -925,6 +1006,92 @@
     })[c]);
   }
   function escapeAttr(s){ return escape(s).replace(/`/g,'&#96;'); }
+
+  // ============================================================
+  // Bulk import to The Canon
+  //   Tolerant parser — accepts:
+  //     "Vertigo"
+  //     "Vertigo (1958)"
+  //     "Vertigo (1958) [Series]"
+  //     "  1. Vertigo (1958) — Joel"        (matches our Export format)
+  // ============================================================
+  function parseImportLine(raw){
+    let line = String(raw || '').trim();
+    if(!line) return null;
+    // Strip leading rank: "  1. ", "1. ", "1) "
+    line = line.replace(/^\s*\d+\s*[.)]\s+/, '');
+    // Strip trailing attribution: " — Joel" / " - Joel" / " – Joel"
+    line = line.replace(/\s+[—–-]\s+\S.*$/, '').trim();
+    // Detect type tag
+    let type = 'movie';
+    if(/\s*\[Series\]\s*$/i.test(line)){
+      type = 'series';
+      line = line.replace(/\s*\[Series\]\s*$/i, '').trim();
+    } else if(/\s*\[(Movie|Film)\]\s*$/i.test(line)){
+      line = line.replace(/\s*\[(Movie|Film)\]\s*$/i, '').trim();
+    }
+    // Detect (YEAR)
+    let year = null;
+    const ym = line.match(/\s*\((\d{4})\)\s*$/);
+    if(ym){
+      year = parseInt(ym[1], 10);
+      line = line.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+    }
+    if(!line) return null;
+    return { title: line, year, type };
+  }
+
+  $('importBtn').addEventListener('click', ()=>{
+    if(!userName){ showNamePrompt('first'); return; }
+    $('importInput').value = '';
+    $('importModal').classList.add('show');
+    setTimeout(()=>$('importInput').focus(), 50);
+  });
+  $('cancelImport').addEventListener('click', ()=>{
+    $('importModal').classList.remove('show');
+  });
+  $('confirmImport').addEventListener('click', async ()=>{
+    if(!userName){ showNamePrompt('first'); return; }
+    const lines = $('importInput').value.split('\n');
+    const parsed = lines.map(parseImportLine).filter(p => p);
+    if(parsed.length === 0){ showToast('No valid titles found'); return; }
+    const remaining = 100 - canon.length;
+    if(remaining <= 0){ showToast('Canon is full (100/100)'); return; }
+    const toImport = parsed.slice(0, remaining);
+    const skipped = parsed.length - toImport.length;
+
+    $('importModal').classList.remove('show');
+    loader.classList.add('show');
+
+    let nextRank = canon.length + 1;
+    let added = 0, failed = 0;
+    for(let i = 0; i < toImport.length; i++){
+      const entry = toImport[i];
+      loader.textContent = `Importing ${i+1}/${toImport.length}…`;
+      let result = null;
+      try { result = await fetchPoster(entry.title, entry.year, entry.type); } catch(e){}
+      const movie = {
+        title: result?.title || entry.title,
+        year: result?.year ? parseInt(result.year, 10) : (entry.year || null),
+        poster: result?.poster || null,
+        rank: nextRank,
+        type: entry.type,
+        added_by: userName
+      };
+      const { error } = await supabase.from('canon').insert([movie]);
+      if(error){ failed++; }
+      else    { added++; nextRank++; }
+    }
+
+    loader.classList.remove('show');
+    loader.textContent = 'Searching the archive…';
+
+    let msg = `Imported ${added}`;
+    if(failed)  msg += `, ${failed} failed`;
+    if(skipped) msg += `, ${skipped} skipped (Canon full)`;
+    showToast(msg);
+    await loadEverything();
+  });
 
   init();
 </script>
